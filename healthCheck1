@@ -1,0 +1,77 @@
+#!/bin/bash
+
+server_up=true;
+
+# We start by checking if the website is offline.
+
+if curl -s -I -f https://www.sushantadk.coming/ > /dev/null; then 
+# if it is online, go right ahead
+	echo "Website is online"
+else
+echo "Website is detected to be offline. Let's run checks to see to reliably confirm that it is down"
+# if it is offline, we have to do more checks to see if it is really offline or it was just noise
+sleep 3;
+# the website will be checked for a total of 10 times. Only If it is unresponsive on all checks, we move on to another section
+# the checks will last for a minimum of 30s and the time it takes for curl to return
+declare -i webUpCount=1;
+declare -i minChecks=9;
+	while  ! curl -s -I -f https://www.sushantadk.coming/ > /dev/null  && [ $webUpCount -lt $minChecks ]
+	do
+	echo " Check $webUpCount. Website still down. Sleep for 3secs before continue"
+	sleep 3;
+	webUpCount+=1;
+	done
+
+	if [ $webUpCount -ge $minChecks ]; then
+		echo "Website is confirmed to be down after $webUpCount checks"
+		echo "Let's see if we can ping the server"
+
+		if ping -c 1 192.168.1.3 > /dev/null; then
+			echo "Ping Successful. This is strange. Website is down but server is up? Let's check one more time that the website is really down"
+			if curl -s -I -f https://www.sushantadk.coming/ > /dev/null; then 
+
+		else
+			server_up=false;
+			echo "Ping Unsuccessful"
+		fi
+
+
+	else
+		echo "Website responded after $webUpCount checks."
+	fi
+
+
+	server_up=false;
+	echo "Website it offline"
+fi
+
+if ! $server_up; then
+	echo "Server down, should initiate services"
+
+declare -i servicesStarted=0;
+declare -i reqdServices=2;
+
+	systemctl start nginx
+	if systemctl status nginx > /dev/null; then
+		echo "nginx started"
+		servicesStarted+=1;
+	else
+		echo "failed to start nginx"
+	fi
+
+	systemctl start gunicorn
+	if systemctl status gunicorn > /dev/null; then
+		echo "gunicorn started"
+		servicesStarted+=1;
+	else
+		echo "failed to start gunicorn"
+	fi
+
+	if [ $servicesStarted -eq $reqdServices ]; then
+		echo "All services initialized."
+		ip addr add 192.168.1.250/24 dev wlo1;
+	else
+		echo "Only $servicesStarted/$reqdServices services started."
+	fi
+fi
+
