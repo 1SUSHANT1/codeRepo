@@ -27,23 +27,43 @@ declare -i minChecks=9;
 		echo "Let's see if we can ping the server"
 
 		if ping -c 1 192.168.1.3 > /dev/null; then
-			echo "Ping Successful. This is strange. Website is down but server is up? Let's check one more time that the website is really down"
-			if curl -s -I -f https://www.sushantadk.coming/ > /dev/null; then 
-
+			echo "Ping Successful. This is strange. Website is down but server is up? Let's sleep 10 and check again. Maybe the server just booted."
+			sleep 10;
+			if curl -s -I -f https://www.sushantadk.com/ > /dev/null; then 
+				echo "The website responded. We are good"
+			else
+				echo "The website is dead. Since the server is up, Let's try recovery."
+				# Try recovery here
+			fi
 		else
-			server_up=false;
-			echo "Ping Unsuccessful"
-		fi
+			echo "Ping Unsuccessful. Let's confirm with 9 checks again."
+		declare -i serverUpCount=1;
+		declare -i minChecksServer=9;
 
+			while ! ping -c 1 192.168.1.2 > /dev/null && [ $serverUpCount -lt $minChecksServer ]
+			do
+			echo " Check $serverUpCount. Website still down. Sleep for 2secs before continue"
+			sleep 2;
+			serverUpCount+=1;
+			done
 
-	else
-		echo "Website responded after $webUpCount checks."
+			if [ $serverUpCount -ge $minChecksServer ]; then
+				echo "The server is confirmed dead. Should Take over"
+				# Take Over Here
+			else
+				echo "The server responded in $serverUpCount checks. Let's try recovery"
+				# Try recovery Here
+			fi
+
 	fi
 
 
-	server_up=false;
-	echo "Website it offline"
+	else
+		echo "Website responded after $webUpCount checks. We good"
+	fi
 fi
+
+takeover() {
 
 if ! $server_up; then
 	echo "Server down, should initiate services"
@@ -74,4 +94,20 @@ declare -i reqdServices=2;
 		echo "Only $servicesStarted/$reqdServices services started."
 	fi
 fi
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
 
