@@ -1,0 +1,14 @@
+
+2026-08-20 13:12:44
+Website is detected to be offline. Let's run checks to reliably confirm that it is down
+Website is confirmed to be down after 5 checks
+Ping Successful. This is strange. Website is down but server is up? Let's sleep 10 and check again. Maybe the server just booted.
+The website is dead. Since the server is up, Let's try recovery.
+Recovery code Executed Successfully. Let's wait 30 sec to see if the website comes back
+After executing the recovery script, the website still didn't come back
+Initiate takeover procedure
+All services initialized.
+Server is online. Should ask the server to unassign the IP address
+Main server released the IP address. Adding it now
+Router's port forwarding IP address was correctly added.
+Website is online. Takeover was successful

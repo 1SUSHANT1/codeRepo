@@ -1,5 +1,14 @@
 #!/bin/bash
 
+FILE_SIZE=$(stat -c %s "/home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog")
+
+if [ $FILE_SIZE -ge 10000000 ]; then
+        mv /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog1
+fi
+
+
+
+
 server_down=false;
 
 addIPAddress(){
@@ -19,14 +28,14 @@ elif [ $? -eq 2 ]; then
 	fi
 	return 0;
 else
-	echo "Couldn't assign the IP address"
+	echo "Couldn't assign the IP address" |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 	return 1;
 fi
 }
 
 
 takeover() {
-
+	echo "Initiate takeover procedure" |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 	echo "Should initiate services"
 
 declare -i servicesStarted=0;
@@ -49,39 +58,39 @@ declare -i reqdServices=2;
 	fi
 
 	if [ $servicesStarted -eq $reqdServices ]; then
-		echo "All services initialized."
+		echo "All services initialized." |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 
-		if [ $server_down ]; then
-		echo "Server is down. Let's add the router's port forwarding IP address."
+		if [ ! $server_down ]; then
+		echo "Server is down. Let's add the router's port forwarding IP address." |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 			if addIPAddress; then
-				echo "Router's port forwarding IP address was correctly added."
+				echo "Router's port forwarding IP address was correctly added." |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 			else
-				echo "Router's port forwarding IP address couldn't be correctly added."
+				echo "Router's port forwarding IP address couldn't be correctly added." |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 			fi
 
 		else
-		echo "Server is online. Should ask the server to unassign the IP address"
+		echo "Server is online. Should ask the server to unassign the IP address" |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 			if ssh -i /home/susie/.ssh/key_RecoveryMain Gucci@192.168.1.3 'sudo /home/user/recovery_backup/unassignIP'; then
-				echo "Main server released the IP address. Adding it now"
+				echo "Main server released the IP address. Adding it now" |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 				if addIPAddress; then
-				echo "Router's port forwarding IP address was correctly added."
+				echo "Router's port forwarding IP address was correctly added." |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 				else
-					echo "Router's port forwarding IP address couldn't be correctly added."
+					echo "Router's port forwarding IP address couldn't be correctly added." |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 				fi
 			else
-					echo "Main server couldn't release the IP address."
-					echo " Couldn't add the IP address. Failover will likely fail on this run."
+					echo "Main server couldn't release the IP address." |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
+					echo " Couldn't add the IP address. Failover will likely fail on this run." |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 			fi
 
 		fi
 	else
-		echo "Only $servicesStarted/$reqdServices services started. Takeover was unsuccessful."
+		echo "Only $servicesStarted/$reqdServices services started. Takeover was unsuccessful." |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 	fi
 
 		echo "Let's sleep 30 and see if the website is online now"
 		sleep 30;
 		if curl -s -I -f https://www.sushantadk.com/ > /dev/null; then
-			echo "Website is online. Takeover was successful"
+			echo "Website is online. Takeover was successful" |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 		else
 			echo "Website is offline. Takeover likely failed"
 		fi
@@ -91,25 +100,25 @@ declare -i reqdServices=2;
 recover_server() {
 
 if ssh -i /home/susie/.ssh/key_RecoveryMain Gucci@192.168.1.3 'sudo /home/user/recovery_backup/recoveryScript'; then
-	echo "Recovery code Executed Successfully. Let's wait 30 sec to see if the website comes back"
+	echo "Recovery code Executed Successfully. Let's wait 30 sec to see if the website comes back" |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 	sleep 5;
 	if curl -s -I -f https://www.sushantadk.com/ > /dev/null; then
-	echo "The website came back. Recovery was successful"
+	echo "The website came back. Recovery was successful" |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 	else
-	echo "After executing the recovery script, the website still didn't come back"
+	echo "After executing the recovery script, the website still didn't come back" |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 	takeover
 	fi
 else
-	echo "Recovery code couldn't perform the recovery successfully. Let's sleep 10secs and try again"
+	echo "Recovery code couldn't perform the recovery successfully. Let's sleep 10secs and try again" |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 	sleep 10;
 
 	if ssh -i /home/susie/.ssh/key_RecoveryMain Gucci@192.168.1.3 'sudo /home/user/recovery_backup/recoveryScript'; then
-		echo "Recovery code Executed Successfully. Let's wait 30 sec to see if the website comes back"
+		echo "Recovery code Executed Successfully. Let's wait 30 sec to see if the website comes back" |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 		sleep 30;
 		if curl -s -I -f https://www.sushantadk.com/ > /dev/null; then
-			echo "The website came back. Recovery was successful"
+			echo "The website came back. Recovery was successful" |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 		else
-			echo "After executing the recovery script, the website still didn't come back"
+			echo "After executing the recovery script, the website still didn't come back" |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 			takeover
 		fi
 else
@@ -124,7 +133,9 @@ if curl -s -I -f https://www.sushantadk.com/ > /dev/null; then
 # if it is online, go right ahead
 	echo "Website is online"
 else
-echo "Website is detected to be offline. Let's run checks to reliably confirm that it is down"
+echo " " >> /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
+echo "$(date '+%Y-%m-%d %H:%M:%S')" >> /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
+echo "Website is detected to be offline. Let's run checks to reliably confirm that it is down" | tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 # if it is offline, we have to do more checks to see if it is really offline or it was just noise
 sleep 3;
 # the website will be checked for a total of 10 times. Only If it is unresponsive on all checks, we move on to another section
@@ -139,16 +150,16 @@ declare -i minChecks=5;
 	done
 
 	if [ $webUpCount -ge $minChecks ]; then
-		echo "Website is confirmed to be down after $webUpCount checks"
+		echo "Website is confirmed to be down after $webUpCount checks" |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 		echo "Let's see if we can ping the server"
 
 		if ping -c 1 192.168.1.3 > /dev/null; then
-			echo "Ping Successful. This is strange. Website is down but server is up? Let's sleep 10 and check again. Maybe the server just booted."
+			echo "Ping Successful. This is strange. Website is down but server is up? Let's sleep 10 and check again. Maybe the server just booted." |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 			sleep 10;
 			if curl -s -I -f https://www.sushantadk.com/ > /dev/null; then 
-				echo "The website responded. We are good"
+				echo "The website responded. We are good" |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 			else
-				echo "The website is dead. Since the server is up, Let's try recovery."
+				echo "The website is dead. Since the server is up, Let's try recovery." | tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 				recover_server
 			fi
 		else
@@ -164,17 +175,17 @@ declare -i minChecks=5;
 			done
 
 			if [ $serverUpCount -ge $minChecksServer ]; then
-				echo "The server is confirmed dead. Should Take over"
+				echo "The server is confirmed dead. Should Take over" | tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 				server_down=true;
 				takeover
 				# Take Over Here
 			else
-				echo "The server responded in $serverUpCount checks. Let's try recovery"
+				echo "The server responded in $serverUpCount checks. Let's try recovery" |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 				# Try recovery Here
 			fi
 
 	fi
 	else
-		echo "Website responded after $webUpCount checks. We good"
+		echo "Website responded after $webUpCount checks. We good" | tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 	fi
 fi
