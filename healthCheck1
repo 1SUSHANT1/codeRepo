@@ -1,72 +1,9 @@
 #!/bin/bash
 
-server_up=true;
-
-# We start by checking if the website is offline.
-
-if curl -s -I -f https://www.sushantadk.coming/ > /dev/null; then 
-# if it is online, go right ahead
-	echo "Website is online"
-else
-echo "Website is detected to be offline. Let's run checks to see to reliably confirm that it is down"
-# if it is offline, we have to do more checks to see if it is really offline or it was just noise
-sleep 3;
-# the website will be checked for a total of 10 times. Only If it is unresponsive on all checks, we move on to another section
-# the checks will last for a minimum of 30s and the time it takes for curl to return
-declare -i webUpCount=1;
-declare -i minChecks=9;
-	while  ! curl -s -I -f https://www.sushantadk.coming/ > /dev/null  && [ $webUpCount -lt $minChecks ]
-	do
-	echo " Check $webUpCount. Website still down. Sleep for 3secs before continue"
-	sleep 3;
-	webUpCount+=1;
-	done
-
-	if [ $webUpCount -ge $minChecks ]; then
-		echo "Website is confirmed to be down after $webUpCount checks"
-		echo "Let's see if we can ping the server"
-
-		if ping -c 1 192.168.1.3 > /dev/null; then
-			echo "Ping Successful. This is strange. Website is down but server is up? Let's sleep 10 and check again. Maybe the server just booted."
-			sleep 10;
-			if curl -s -I -f https://www.sushantadk.com/ > /dev/null; then 
-				echo "The website responded. We are good"
-			else
-				echo "The website is dead. Since the server is up, Let's try recovery."
-				# Try recovery here
-			fi
-		else
-			echo "Ping Unsuccessful. Let's confirm with 9 checks again."
-		declare -i serverUpCount=1;
-		declare -i minChecksServer=9;
-
-			while ! ping -c 1 192.168.1.2 > /dev/null && [ $serverUpCount -lt $minChecksServer ]
-			do
-			echo " Check $serverUpCount. Website still down. Sleep for 2secs before continue"
-			sleep 2;
-			serverUpCount+=1;
-			done
-
-			if [ $serverUpCount -ge $minChecksServer ]; then
-				echo "The server is confirmed dead. Should Take over"
-				# Take Over Here
-			else
-				echo "The server responded in $serverUpCount checks. Let's try recovery"
-				# Try recovery Here
-			fi
-
-	fi
-
-
-	else
-		echo "Website responded after $webUpCount checks. We good"
-	fi
-fi
 
 takeover() {
 
-if ! $server_up; then
-	echo "Server down, should initiate services"
+	echo "Should initiate services"
 
 declare -i servicesStarted=0;
 declare -i reqdServices=2;
@@ -91,23 +28,96 @@ declare -i reqdServices=2;
 		echo "All services initialized."
 		ip addr add 192.168.1.250/24 dev wlo1;
 	else
-		echo "Only $servicesStarted/$reqdServices services started."
+		echo "Only $servicesStarted/$reqdServices services started. Takeover was unsuccessful."
 	fi
-fi
-
-
-
-
-
 }
 
 
+recover_server() {
 
+if ssh -i /home/susie/.ssh/key_RecoveryMain Gucci@192.168.1.3 'sudo /home/user/recovery_backup/recoveryScript'; then
+	echo "Recovery code Executed Successfully. Let's wait 30 sec to see if the website comes back"
+	sleep 5;
+	if curl -s -I -f https://www.sushantadk.com/ > /dev/null; then
+	echo "The website came back. Recovery was successful"
+	else
+	echo "After executing the recovery script, the website still didn't come back"
+	takeover
+	fi
+else
+	echo "Recovery code couldn't perform the recovery successfully. Let's sleep 10secs and try again"
+	sleep 10;
 
+	if ssh -i /home/susie/.ssh/key_RecoveryMain Gucci@192.168.1.3 'sudo /home/user/recovery_backup/recoveryScript'; then
+		echo "Recovery code Executed Successfully. Let's wait 30 sec to see if the website comes back"
+		sleep 30;
+		if curl -s -I -f https://www.sushantadk.com/ > /dev/null; then
+			echo "The website came back. Recovery was successful"
+		else
+			echo "After executing the recovery script, the website still didn't come back"
+			takeover
+		fi
+else
+		takeover
+	fi
+fi
+}
 
+# We start by checking if the website is offline.
 
+if curl -s -I -f https://www.sushantadk.com/ > /dev/null; then
+# if it is online, go right ahead
+	echo "Website is online"
+else
+echo "Website is detected to be offline. Let's run checks to see to reliably confirm that it is down"
+# if it is offline, we have to do more checks to see if it is really offline or it was just noise
+sleep 3;
+# the website will be checked for a total of 10 times. Only If it is unresponsive on all checks, we move on to another section
+# the checks will last for a minimum of 30s and the time it takes for curl to return
+declare -i webUpCount=1;
+declare -i minChecks=5;
+	while  ! curl -s -I -f https://www.sushantadk.com/ > /dev/null  && [ $webUpCount -lt $minChecks ]
+	do
+	echo " Check $webUpCount. Website still down. Sleep for 3secs before continue"
+	sleep 3;
+	webUpCount+=1;
+	done
 
+	if [ $webUpCount -ge $minChecks ]; then
+		echo "Website is confirmed to be down after $webUpCount checks"
+		echo "Let's see if we can ping the server"
 
+		if ping -c 1 192.168.1.3 > /dev/null; then
+			echo "Ping Successful. This is strange. Website is down but server is up? Let's sleep 10 and check again. Maybe the server just booted."
+			sleep 10;
+			if curl -s -I -f https://www.sushantadk.com/ > /dev/null; then 
+				echo "The website responded. We are good"
+			else
+				echo "The website is dead. Since the server is up, Let's try recovery."
+				recover_server
+			fi
+		else
+			echo "Ping Unsuccessful. Let's confirm with 9 checks again."
+		declare -i serverUpCount=1;
+		declare -i minChecksServer=9;
 
+			while ! ping -c 1 192.168.1.3 > /dev/null && [ $serverUpCount -lt $minChecksServer ]
+			do
+			echo " Check $serverUpCount. Server still down. Sleep for 2secs before continue"
+			sleep 2;
+			serverUpCount+=1;
+			done
 
+			if [ $serverUpCount -ge $minChecksServer ]; then
+				echo "The server is confirmed dead. Should Take over"
+				# Take Over Here
+			else
+				echo "The server responded in $serverUpCount checks. Let's try recovery"
+				# Try recovery Here
+			fi
 
+	fi
+	else
+		echo "Website responded after $webUpCount checks. We good"
+	fi
+fi
