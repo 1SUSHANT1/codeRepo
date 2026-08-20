@@ -1,5 +1,29 @@
 #!/bin/bash
 
+server_down=false;
+
+addIPAddress(){
+if ip addr add 192.168.1.5/24 dev wlo1; then
+	if sudo arping -U -I wlo1 -c 1 192.168.1.5; then
+	echo "Succesfully let other devices know of the IP address change."
+	else
+	echo "Failed to let other devices know of the IP address change."
+	fi
+	return 0;
+elif [ $? -eq 2 ]; then
+	echo "Address was already assigned. We can move on"
+	if sudo arping -U -I wlo1 -c 1 192.168.1.5; then
+	echo "Succesfully let other devices know of the IP address change."
+	else
+	echo "Failed to let other devices know of the IP address change."
+	fi
+	return 0;
+else
+	echo "Couldn't assign the IP address"
+	return 1;
+fi
+}
+
 
 takeover() {
 
@@ -10,26 +34,57 @@ declare -i reqdServices=2;
 
 	systemctl start nginx
 	if systemctl status nginx > /dev/null; then
-		echo "nginx started"
+		echo "NGINX started"
 		servicesStarted+=1;
 	else
-		echo "failed to start nginx"
+		echo "Failed to start NGINX"
 	fi
 
 	systemctl start gunicorn
 	if systemctl status gunicorn > /dev/null; then
-		echo "gunicorn started"
+		echo "Gunicorn started"
 		servicesStarted+=1;
 	else
-		echo "failed to start gunicorn"
+		echo "Failed to start Gunicorn"
 	fi
 
 	if [ $servicesStarted -eq $reqdServices ]; then
 		echo "All services initialized."
-		ip addr add 192.168.1.250/24 dev wlo1;
+
+		if [ $server_down ]; then
+		echo "Server is down. Let's add the router's port forwarding IP address."
+			if addIPAddress; then
+				echo "Router's port forwarding IP address was correctly added."
+			else
+				echo "Router's port forwarding IP address couldn't be correctly added."
+			fi
+
+		else
+		echo "Server is online. Should ask the server to unassign the IP address"
+			if ssh -i /home/susie/.ssh/key_RecoveryMain Gucci@192.168.1.3 'sudo /home/user/recovery_backup/unassignIP'; then
+				echo "Main server released the IP address. Adding it now"
+				if addIPAddress; then
+				echo "Router's port forwarding IP address was correctly added."
+				else
+					echo "Router's port forwarding IP address couldn't be correctly added."
+				fi
+			else
+					echo "Main server couldn't release the IP address."
+					echo " Couldn't add the IP address. Failover will likely fail on this run."
+			fi
+
+		fi
 	else
 		echo "Only $servicesStarted/$reqdServices services started. Takeover was unsuccessful."
 	fi
+
+		echo "Let's sleep 30 and see if the website is online now"
+		sleep 30;
+		if curl -s -I -f https://www.sushantadk.com/ > /dev/null; then
+			echo "Website is online. Takeover was successful"
+		else
+			echo "Website is offline. Takeover likely failed"
+		fi
 }
 
 
@@ -69,7 +124,7 @@ if curl -s -I -f https://www.sushantadk.com/ > /dev/null; then
 # if it is online, go right ahead
 	echo "Website is online"
 else
-echo "Website is detected to be offline. Let's run checks to see to reliably confirm that it is down"
+echo "Website is detected to be offline. Let's run checks to reliably confirm that it is down"
 # if it is offline, we have to do more checks to see if it is really offline or it was just noise
 sleep 3;
 # the website will be checked for a total of 10 times. Only If it is unresponsive on all checks, we move on to another section
@@ -78,8 +133,8 @@ declare -i webUpCount=1;
 declare -i minChecks=5;
 	while  ! curl -s -I -f https://www.sushantadk.com/ > /dev/null  && [ $webUpCount -lt $minChecks ]
 	do
-	echo " Check $webUpCount. Website still down. Sleep for 3secs before continue"
-	sleep 3;
+	echo " Check $webUpCount. Website still down. Sleep for 2secs before continue"
+	sleep 2;
 	webUpCount+=1;
 	done
 
@@ -97,19 +152,21 @@ declare -i minChecks=5;
 				recover_server
 			fi
 		else
-			echo "Ping Unsuccessful. Let's confirm with 9 checks again."
+			echo "Ping Unsuccessful. Let's run more checks to reliably confirm that the server is dead."
 		declare -i serverUpCount=1;
-		declare -i minChecksServer=9;
+		declare -i minChecksServer=5;
 
 			while ! ping -c 1 192.168.1.3 > /dev/null && [ $serverUpCount -lt $minChecksServer ]
 			do
 			echo " Check $serverUpCount. Server still down. Sleep for 2secs before continue"
-			sleep 2;
+			sleep 1;
 			serverUpCount+=1;
 			done
 
 			if [ $serverUpCount -ge $minChecksServer ]; then
 				echo "The server is confirmed dead. Should Take over"
+				server_down=true;
+				takeover
 				# Take Over Here
 			else
 				echo "The server responded in $serverUpCount checks. Let's try recovery"
