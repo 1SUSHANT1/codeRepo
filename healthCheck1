@@ -1,12 +1,11 @@
 #!/bin/bash
 
+
 FILE_SIZE=$(stat -c %s "/home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog")
 
 if [ $FILE_SIZE -ge 10000000 ]; then
         mv /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog1
 fi
-
-
 
 
 server_down=false;
@@ -63,6 +62,8 @@ declare -i reqdServices=2;
 		if [ ! $server_down ]; then
 		echo "Server is down. Let's add the router's port forwarding IP address." |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 			if addIPAddress; then
+				sudo -u susie sh -c 'echo "active" > /tmp/mystate'
+				sudo certbot renew -q >> /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog 2>&1 &
 				echo "Router's port forwarding IP address was correctly added." |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 			else
 				echo "Router's port forwarding IP address couldn't be correctly added." |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
@@ -71,8 +72,11 @@ declare -i reqdServices=2;
 		else
 		echo "Server is online. Should ask the server to unassign the IP address" |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 			if ssh -i /home/susie/.ssh/key_RecoveryMain Gucci@192.168.1.3 'sudo /home/user/recovery_backup/unassignIP'; then
+				sudo -u susie sh -c 'echo "active" > /tmp/mystate'
+
 				echo "Main server released the IP address. Adding it now" |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 				if addIPAddress; then
+				sudo certbot renew -q >> /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog 2>&1 &
 				echo "Router's port forwarding IP address was correctly added." |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 				else
 					echo "Router's port forwarding IP address couldn't be correctly added." |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
@@ -133,6 +137,8 @@ if curl -s -I -f https://www.sushantadk.com/ > /dev/null; then
 # if it is online, go right ahead
 	echo "Website is online"
 else
+echo 1 > /home/susie/myWebsite/Executables/clusterAdmin/lockFile
+
 echo " " >> /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 echo "$(date '+%Y-%m-%d %H:%M:%S')" >> /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 echo "Website is detected to be offline. Let's run checks to reliably confirm that it is down" | tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
@@ -182,10 +188,13 @@ declare -i minChecks=5;
 			else
 				echo "The server responded in $serverUpCount checks. Let's try recovery" |  tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 				# Try recovery Here
-			fi
+				recover_server
+		fi
 
 	fi
 	else
 		echo "Website responded after $webUpCount checks. We good" | tee -a /home/susie/myWebsite/Executables/clusterAdmin/clusterAdminLog;
 	fi
 fi
+
+echo 0 > /home/susie/myWebsite/Executables/clusterAdmin/lockFile
